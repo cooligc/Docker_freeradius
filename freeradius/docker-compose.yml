@@ -1,0 +1,77 @@
+version: '3.2'
+services:
+ mysql:
+    image: "mysql:5.7"
+    command: mysqld
+    environment:
+      - MYSQL_ROOT_PASSWORD=radius
+      - MYSQL_USER=freeradius
+      - MYSQL_PASSWORD=radius123
+      - MYSQL_DATABASE=radius
+    restart: always
+    container_name: mysql
+    volumes:
+      - ./scripts/:/docker-entrypoint-initdb.d/
+    networks:
+     mynet:
+      ipv4_address: 172.25.0.100
+ freeradius:
+    image: "freeradius/freeradius-server:3.0.16"
+  # build:
+  #    context: .
+  #    dockerfile: Dockerfile
+    ports:
+    - "1812:1812/udp"
+    - "1813:1813"
+    - "18120:18120"
+    environment:
+    - DB_HOST=mysql
+    - RAD_DEBUG=yes
+    volumes:
+    - ./config/eap:/etc/freeradius/eap
+    - ./config/mschap:/etc/freeradius/mschap
+    - ./config/default:/etc/freeradius/sites-available/default
+    - ./config/mods-available/sql:/etc/freeradius/mods-available/sql
+    - ./config/sites-available/innertunnel:/etc/freeradius/sites-available/innertunnel
+    - ./config/clients.conf:/etc/freeradius/clients.conf
+    - ./config/mysqld.conf:/etc/freeradius/mysqld.conf
+    - ./config/users:/etc/freeradius/users
+    - ./config/mods-available/sql:/etc/freeradius/mods-enabled/sql
+    #
+    - ./config/eap:/etc/raddb/eap 
+    - ./config/mschap:/etc/raddb/mschap
+    - ./config/default:/etc/raddb/sites-available/default
+    - ./config/mods-available/sql:/etc/raddb/mods-available/sql
+    - ./config/sites-available/innertunnel:/etc/raddb/sites-available/innertunnel
+    - ./config/clients.conf:/etc/raddb/clients.conf
+    - ./config/mysqld.conf:/etc/raddb/mysqld.conf
+    - ./config/users:/etc/raddb/users
+    - ./config/mods-available/sql:/etc/raddb/mods-enabled/sql
+    command: bash -c "/usr/sbin/freeradius -X"
+    networks:
+     mynet:
+      ipv4_address: 172.25.0.101
+    depends_on:
+        - mysql
+    links:
+        - mysql
+    restart: always
+    container_name: freeradius
+
+#  freeradius-test:
+#   image: "freeradius/freeradius-server:3.0.16"
+#   # build:
+#   #    context: .
+#   #    dockerfile: Dockerfile
+#   command: "radtest testuser testpassword freeradius 0 testing123"
+#   networks:
+#    mynet:
+#     ipv4_address: 172.25.0.102
+#   restart: always
+#   container_name: freeradius-test
+networks:
+  mynet:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.25.0.0/24
